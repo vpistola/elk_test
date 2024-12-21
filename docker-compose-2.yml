@@ -1,0 +1,139 @@
+version: '3.7'
+
+services:
+  # Elasticsearch nodes
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=elk-cluster
+      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es02,es03
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.keystore.path=/usr/share/elasticsearch/config/certs/es01.p12
+      - xpack.security.http.ssl.truststore.path=/usr/share/elasticsearch/config/certs/es01.p12
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.keystore.path=/usr/share/elasticsearch/config/certs/es01.p12
+      - xpack.security.transport.ssl.truststore.path=/usr/share/elasticsearch/config/certs/es01.p12
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+      - esdata1:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: es02
+    environment:
+      - node.name=es02
+      - cluster.name=elk-cluster
+      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01,es03
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.keystore.path=/usr/share/elasticsearch/config/certs/es02.p12
+      - xpack.security.http.ssl.truststore.path=/usr/share/elasticsearch/config/certs/es02.p12
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.keystore.path=/usr/share/elasticsearch/config/certs/es02.p12
+      - xpack.security.transport.ssl.truststore.path=/usr/share/elasticsearch/config/certs/es02.p12
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+      - esdata2:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: es03
+    environment:
+      - node.name=es03
+      - cluster.name=elk-cluster
+      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01,es02
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.keystore.path=/usr/share/elasticsearch/config/certs/es03.p12
+      - xpack.security.http.ssl.truststore.path=/usr/share/elasticsearch/config/certs/es03.p12
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.keystore.path=/usr/share/elasticsearch/config/certs/es03.p12
+      - xpack.security.transport.ssl.truststore.path=/usr/share/elasticsearch/config/certs/es03.p12
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+      - esdata3:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana.key
+      - SERVER_SSL_CERT=/usr/share/kibana/config/certs/kibana.crt
+    ports:
+      - "5601:5601"
+    volumes:
+      - ./certs:/usr/share/kibana/config/certs
+    depends_on:
+      - es01
+
+  # Logstash
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    container_name: logstash
+    ports:
+      - "5000:5000"
+      - "5044:5044"
+    environment:
+      - xpack.monitoring.elasticsearch.username=elastic
+      - xpack.monitoring.elasticsearch.password=${ELASTIC_PASSWORD}
+      - xpack.monitoring.elasticsearch.hosts=["https://es01:9200"]
+      - xpack.monitoring.elasticsearch.ssl.certificate_authority=/usr/share/logstash/config/certs/ca.crt
+    volumes:
+      - ./certs:/usr/share/logstash/config/certs
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    depends_on:
+      - es01
+
+  # Filebeat
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    container_name: filebeat
+    volumes:
+      - ./certs:/usr/share/filebeat/certs
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - /var/log:/var/log:ro
+    depends_on:
+      - es01
+      - logstash
+
+volumes:
+  esdata1:
+    driver: local
+  esdata2:
+    driver: local
+  esdata3:
+    driver: local
