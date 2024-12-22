@@ -1,5 +1,3 @@
-docker run --rm -v $(pwd)/certs:/certs -it docker.elastic.co/elasticsearch/elasticsearch:8.10.0 bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip; unzip config/certs/ca.zip -d config/certs;
-
-docker run --rm -v $(pwd)/certs:/certs -it docker.elastic.co/elasticsearch/elasticsearch:8.10.0 /usr/share/elasticsearch/bin/elasticsearch-certutil ca --pem --out /certs/ca.zip
-
-docker run --rm -v $(pwd)/certs:/certs -it docker.elastic.co/elasticsearch/elasticsearch:8.10.0 /usr/share/elasticsearch/bin/elasticsearch-certutil ca --pem --out /certs/ca.zip; unzip
+- Change the values of the .env file
+- Run the dc.yml: docker compose -f dc.yml up -d
+- Known issue: the logstash container exits with certificate problem (cannot read the certificate)
