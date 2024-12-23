@@ -223,26 +223,36 @@ logstash:
     image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
     container_name: logstash
     ports:
-      - "5000:5000"
-      - "5044:5044"
+      - ${LOGSTASH_PORT}:9600
     environment:
-      - xpack.monitoring.elasticsearch.username=elastic
-      - xpack.monitoring.elasticsearch.password=${ELASTIC_PASSWORD}
-      - xpack.monitoring.elasticsearch.hosts=["https://es01:9200"]
-      - xpack.monitoring.elasticsearch.ssl.certificate_authority=/usr/share/logstash/config/certs/ca/ca.crt
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
     volumes:
       - certs:/usr/share/logstash/config/certs
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    mem_limit: ${MEM_LIMIT}
     depends_on:
       - es01
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:9600 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
     container_name: filebeat
+    environment:
+      - container  #This is line is for the ==> Error: unknown command "container" for "filebeat"\nRun 'filebeat --help' for usage.
     volumes:
       - certs:/usr/share/filebeat/certs
       - ./filebeat.yml:/usr/share/filebeat/filebeat.yml
       - /var/log:/var/log:ro
+    restart: always
     depends_on:
       - es01
       - logstash
